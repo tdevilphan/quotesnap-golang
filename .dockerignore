@@ -1,0 +1,16 @@
+# Build artifacts
+bin
+/build
+/dist
+
+# Git
+.git
+.gitignore
+
+# Editor directories and files
+.vscode
+.idea
+
+# Misc
+*.log
+.env

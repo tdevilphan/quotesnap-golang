@@ -1,0 +1,77 @@
+version: '3.9'
+
+services:
+    tracking-service:
+        build:
+            context: .
+            target: tracking-service
+        image: quote-snap/tracking-service:dev
+        depends_on:
+            redis:
+                condition: service_healthy
+            mongo:
+                condition: service_started
+        env_file:
+            - .env
+        environment:
+            APP_NAME: tracking-service
+            HTTP_ADDR: 0.0.0.0
+            HTTP_PORT: '8080'
+            REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-3s}
+        ports:
+            - '8080:8080'
+        restart: unless-stopped
+        networks:
+            - app
+
+    tracking-worker:
+        build:
+            context: .
+            target: tracking-worker
+        image: quote-snap/tracking-worker:dev
+        depends_on:
+            redis:
+                condition: service_healthy
+            mongo:
+                condition: service_started
+        env_file:
+            - .env
+        environment:
+            APP_NAME: tracking-worker
+        restart: unless-stopped
+        networks:
+            - app
+
+    redis:
+        image: redis:7
+        command: ['redis-server', '--appendonly', 'yes']
+        ports:
+            - '6379:6379'
+        volumes:
+            - redis-data:/data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 5s
+            timeout: 3s
+            retries: 5
+        restart: unless-stopped
+        networks:
+            - app
+
+    mongo:
+        image: mongo:7
+        ports:
+            - '27017:27017'
+        volumes:
+            - mongo-data:/data/db
+        restart: unless-stopped
+        networks:
+            - app
+
+networks:
+    app:
+        name: quote-snap-network
+
+volumes:
+    redis-data:
+    mongo-data:
