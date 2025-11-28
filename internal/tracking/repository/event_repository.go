@@ -1,4 +1,4 @@
-package mongo
+package repository
 
 import (
 	"context"
@@ -8,26 +8,30 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"quotesnap/internal/core/domain"
-	"quotesnap/internal/core/usecase"
+	"quotesnap/internal/tracking/domain"
 )
 
-// EventRepository stores events inside MongoDB with bounded indexes.
-type EventRepository struct {
+// EventRepository defines persistence operations required by the service domain.
+type EventRepository interface {
+	Persist(ctx context.Context, event domain.Event) error
+}
+
+// MongoEventRepository stores events inside MongoDB with bounded indexes.
+type MongoEventRepository struct {
 	collection *mongo.Collection
 }
 
-// NewEventRepository wires a Mongo collection into a repository implementation.
-func NewEventRepository(db *mongo.Database) (*EventRepository, error) {
+// NewMongoEventRepository wires a Mongo collection into a repository implementation.
+func NewMongoEventRepository(db *mongo.Database) (*MongoEventRepository, error) {
 	collection := db.Collection("events")
 	if err := ensureIndexes(context.Background(), collection); err != nil {
 		return nil, errors.Wrap(err, "ensure indexes")
 	}
-	return &EventRepository{collection: collection}, nil
+	return &MongoEventRepository{collection: collection}, nil
 }
 
 // Persist writes a single event document.
-func (r *EventRepository) Persist(ctx context.Context, event domain.Event) error {
+func (r *MongoEventRepository) Persist(ctx context.Context, event domain.Event) error {
 	_, err := r.collection.InsertOne(ctx, bson.M{
 		"_id":         event.ID.String(),
 		"name":        event.Name,
@@ -39,9 +43,6 @@ func (r *EventRepository) Persist(ctx context.Context, event domain.Event) error
 	})
 	return errors.Wrap(err, "insert event")
 }
-
-// Ensure interface compliance at compile-time.
-var _ usecase.EventRepository = (*EventRepository)(nil)
 
 func ensureIndexes(ctx context.Context, collection *mongo.Collection) error {
 	model := mongo.IndexModel{

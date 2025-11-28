@@ -13,13 +13,13 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
-	apphttp "github.com/tdevilphan/quote-snap-golang/internal/app/http"
-	"github.com/tdevilphan/quote-snap-golang/internal/core/usecase"
-	"github.com/tdevilphan/quote-snap-golang/internal/infra/config"
-	"github.com/tdevilphan/quote-snap-golang/internal/infra/logger"
-	inframongo "github.com/tdevilphan/quote-snap-golang/internal/infra/mongodb"
-	queueasynq "github.com/tdevilphan/quote-snap-golang/internal/infra/queue/asynq"
-	inframongorepo "github.com/tdevilphan/quote-snap-golang/internal/infra/repository/mongo"
+	apphttp "quotesnap/internal/app/http"
+	"quotesnap/internal/core/usecase"
+	"quotesnap/internal/infra/config"
+	"quotesnap/internal/infra/logger"
+	inframongo "quotesnap/internal/infra/mongodb"
+	queueasynq "quotesnap/internal/infra/queue/asynq"
+	inframongorepo "quotesnap/internal/infra/repository/mongo"
 )
 
 func main() {

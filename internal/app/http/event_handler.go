@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 
-	"github.com/tdevilphan/quote-snap-golang/internal/core/usecase"
+	"quotesnap/internal/core/usecase"
 )
 
 // EventHandler wires HTTP transport with the ingest event use case.

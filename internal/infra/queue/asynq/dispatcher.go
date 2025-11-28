@@ -6,8 +6,8 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/pkg/errors"
 
-	"github.com/tdevilphan/quote-snap-golang/internal/core/domain"
-	"github.com/tdevilphan/quote-snap-golang/internal/core/usecase"
+	"quotesnap/internal/core/domain"
+	"quotesnap/internal/core/usecase"
 )
 
 // Dispatcher converts domain events into Asynq tasks and enqueues them for processing.

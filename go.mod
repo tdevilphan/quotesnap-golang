@@ -1,4 +1,4 @@
-module github.com/tdevilphan/quote-snap-golang
+module quotesnap
 
 go 1.22
 

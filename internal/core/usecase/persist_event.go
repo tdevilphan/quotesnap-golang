@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/tdevilphan/quote-snap-golang/internal/core/domain"
+	"quotesnap/internal/core/domain"
 )
 
 // EventRepository defines persistence operations required by the domain.

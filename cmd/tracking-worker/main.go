@@ -10,13 +10,13 @@ import (
 
 	"github.com/hibiken/asynq"
 
-	appworker "github.com/tdevilphan/quote-snap-golang/internal/app/worker"
-	"github.com/tdevilphan/quote-snap-golang/internal/core/usecase"
-	"github.com/tdevilphan/quote-snap-golang/internal/infra/config"
-	"github.com/tdevilphan/quote-snap-golang/internal/infra/logger"
-	inframongo "github.com/tdevilphan/quote-snap-golang/internal/infra/mongodb"
-	queueasynq "github.com/tdevilphan/quote-snap-golang/internal/infra/queue/asynq"
-	inframongorepo "github.com/tdevilphan/quote-snap-golang/internal/infra/repository/mongo"
+	appworker "quotesnap/internal/app/worker"
+	"quotesnap/internal/core/usecase"
+	"quotesnap/internal/infra/config"
+	"quotesnap/internal/infra/logger"
+	inframongo "quotesnap/internal/infra/mongodb"
+	queueasynq "quotesnap/internal/infra/queue/asynq"
+	inframongorepo "quotesnap/internal/infra/repository/mongo"
 )
 
 func main() {

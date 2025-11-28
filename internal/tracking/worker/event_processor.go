@@ -2,24 +2,26 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 
 	"github.com/hibiken/asynq"
 	"github.com/pkg/errors"
 
-	"quotesnap/internal/core/usecase"
-	queueinfra "quotesnap/internal/infra/queue/asynq"
+	"quotesnap/internal/tracking/domain"
+	"quotesnap/internal/tracking/queue"
+	"quotesnap/internal/tracking/repository"
 )
 
-// EventProcessor consumes tracking event tasks and persists them via the provided use case.
+// EventProcessor consumes tracking event tasks and persists them.
 type EventProcessor struct {
-	usecase *usecase.PersistEvent
-	logger  *slog.Logger
+	repo   repository.EventRepository
+	logger *slog.Logger
 }
 
 // NewEventProcessor constructs an EventProcessor instance.
-func NewEventProcessor(usecase *usecase.PersistEvent, logger *slog.Logger) *EventProcessor {
-	return &EventProcessor{usecase: usecase, logger: logger.With("component", "event_processor")}
+func NewEventProcessor(repo repository.EventRepository, logger *slog.Logger) *EventProcessor {
+	return &EventProcessor{repo: repo, logger: logger.With("component", "event_processor")}
 }
 
 // Handler returns an Asynq handler function.
@@ -29,19 +31,19 @@ func (p *EventProcessor) Handler() asynq.Handler {
 
 // ProcessTask persists the event contained in the task payload.
 func (p *EventProcessor) ProcessTask(ctx context.Context, task *asynq.Task) error {
-	if task.Type() != queueinfra.EventIngestTaskType {
+	if task.Type() != queue.EventIngestTaskType {
 		return errors.Errorf("unexpected task type: %s", task.Type())
 	}
 
-	event, err := queueinfra.DecodeEvent(task)
-	if err != nil {
+	var event domain.Event
+	if err := json.Unmarshal(task.Payload(), &event); err != nil {
 		p.logger.Warn("failed to decode event payload", "error", err)
 		return errors.Wrap(err, "decode event payload")
 	}
 
-	if err := p.usecase.Execute(ctx, event); err != nil {
+	if err := p.repo.Persist(ctx, event); err != nil {
 		p.logger.Error("failed to persist event", "event_id", event.ID, "error", err)
-		return err
+		return errors.Wrap(err, "persist event")
 	}
 
 	return nil
