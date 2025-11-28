@@ -47,8 +47,7 @@ func getEnv(key, fallback string) string {
 
 func getEnvInt(key string, fallback int) int {
 	if value := os.Getenv(key); value != "" {
-		parsed, err := strconv.Atoi(value)
-		if err == nil {
+		if parsed, err := strconv.Atoi(value); err == nil {
 			return parsed
 		}
 	}
@@ -57,8 +56,7 @@ func getEnvInt(key string, fallback int) int {
 
 func getEnvDuration(key string, fallback time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {
-		parsed, err := time.ParseDuration(value)
-		if err == nil {
+		if parsed, err := time.ParseDuration(value); err == nil {
 			return parsed
 		}
 	}

@@ -10,13 +10,13 @@ import (
 
 	"github.com/hibiken/asynq"
 
-	"github.com/tdevilphan/quote-snap-golang/internal/config"
-	"github.com/tdevilphan/quote-snap-golang/internal/platform/logger"
-	"github.com/tdevilphan/quote-snap-golang/internal/platform/mongodb"
-	"github.com/tdevilphan/quote-snap-golang/internal/platform/queue"
-	trackingqueue "github.com/tdevilphan/quote-snap-golang/internal/tracking/queue"
-	"github.com/tdevilphan/quote-snap-golang/internal/tracking/repository"
-	"github.com/tdevilphan/quote-snap-golang/internal/tracking/worker"
+	appworker "github.com/tdevilphan/quote-snap-golang/internal/app/worker"
+	"github.com/tdevilphan/quote-snap-golang/internal/core/usecase"
+	"github.com/tdevilphan/quote-snap-golang/internal/infra/config"
+	"github.com/tdevilphan/quote-snap-golang/internal/infra/logger"
+	inframongo "github.com/tdevilphan/quote-snap-golang/internal/infra/mongodb"
+	queueasynq "github.com/tdevilphan/quote-snap-golang/internal/infra/queue/asynq"
+	inframongorepo "github.com/tdevilphan/quote-snap-golang/internal/infra/repository/mongo"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	mongoClient, err := mongodb.Connect(ctx, cfg.MongoURI)
+	mongoClient, err := inframongo.Connect(ctx, cfg.MongoURI)
 	if err != nil {
 		log.Error("failed to connect to mongodb", "error", err)
 		exit(1)
@@ -40,18 +40,19 @@ func main() {
 	}()
 
 	database := mongoClient.Database(cfg.MongoDatabase)
-	eventRepo, err := repository.NewMongoEventRepository(database)
+	eventRepo, err := inframongorepo.NewEventRepository(database)
 	if err != nil {
 		log.Error("failed to initialize event repository", "error", err)
 		exit(1)
 	}
 
-	processor := worker.NewEventProcessor(eventRepo, log)
+	persistEvent := usecase.NewPersistEvent(eventRepo)
+	processor := appworker.NewEventProcessor(persistEvent, log)
 
 	mux := asynq.NewServeMux()
-	mux.Handle(trackingqueue.EventIngestTaskType, processor.Handler())
+	mux.Handle(queueasynq.EventIngestTaskType, processor.Handler())
 
-	server := queue.NewServer(cfg.RedisAddr, cfg.RedisPassword, cfg.AsynqQueue, cfg.AsynqConcurrency, log)
+	server := queueasynq.NewServer(cfg.RedisAddr, cfg.RedisPassword, cfg.AsynqQueue, cfg.AsynqConcurrency, log)
 
 	errorCh := make(chan error, 1)
 	go func() {

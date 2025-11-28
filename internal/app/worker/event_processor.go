@@ -2,26 +2,24 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 
 	"github.com/hibiken/asynq"
 	"github.com/pkg/errors"
 
-	"github.com/tdevilphan/quote-snap-golang/internal/tracking/domain"
-	"github.com/tdevilphan/quote-snap-golang/internal/tracking/queue"
-	"github.com/tdevilphan/quote-snap-golang/internal/tracking/repository"
+	"github.com/tdevilphan/quote-snap-golang/internal/core/usecase"
+	queueinfra "github.com/tdevilphan/quote-snap-golang/internal/infra/queue/asynq"
 )
 
-// EventProcessor consumes tracking event tasks and persists them.
+// EventProcessor consumes tracking event tasks and persists them via the provided use case.
 type EventProcessor struct {
-	repo   repository.EventRepository
-	logger *slog.Logger
+	usecase *usecase.PersistEvent
+	logger  *slog.Logger
 }
 
 // NewEventProcessor constructs an EventProcessor instance.
-func NewEventProcessor(repo repository.EventRepository, logger *slog.Logger) *EventProcessor {
-	return &EventProcessor{repo: repo, logger: logger.With("component", "event_processor")}
+func NewEventProcessor(usecase *usecase.PersistEvent, logger *slog.Logger) *EventProcessor {
+	return &EventProcessor{usecase: usecase, logger: logger.With("component", "event_processor")}
 }
 
 // Handler returns an Asynq handler function.
@@ -31,19 +29,19 @@ func (p *EventProcessor) Handler() asynq.Handler {
 
 // ProcessTask persists the event contained in the task payload.
 func (p *EventProcessor) ProcessTask(ctx context.Context, task *asynq.Task) error {
-	if task.Type() != queue.EventIngestTaskType {
+	if task.Type() != queueinfra.EventIngestTaskType {
 		return errors.Errorf("unexpected task type: %s", task.Type())
 	}
 
-	var event domain.Event
-	if err := json.Unmarshal(task.Payload(), &event); err != nil {
+	event, err := queueinfra.DecodeEvent(task)
+	if err != nil {
 		p.logger.Warn("failed to decode event payload", "error", err)
 		return errors.Wrap(err, "decode event payload")
 	}
 
-	if err := p.repo.Persist(ctx, event); err != nil {
+	if err := p.usecase.Execute(ctx, event); err != nil {
 		p.logger.Error("failed to persist event", "event_id", event.ID, "error", err)
-		return errors.Wrap(err, "persist event")
+		return err
 	}
 
 	return nil

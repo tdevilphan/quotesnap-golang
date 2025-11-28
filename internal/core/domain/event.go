@@ -8,7 +8,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Event captures an immutable tracking event emitted by clients.
+const (
+	// EventMetadataLimit enforces an upper bound on metadata payload sizes (32KB).
+	EventMetadataLimit = 32 * 1024
+)
+
+// Event captures the canonical representation of a tracking event within the domain.
 type Event struct {
 	ID         uuid.UUID       `json:"id"`
 	Name       string          `json:"name"`
@@ -19,32 +24,31 @@ type Event struct {
 	ReceivedAt time.Time       `json:"received_at"`
 }
 
-const maxMetadataSize = 32 * 1024 // 32KB keeps payloads bounded.
-
-// NewEvent validates input and builds a well-formed Event instance.
+// NewEvent validates input parameters and returns a fully populated Event aggregate.
 func NewEvent(name, userID, source string, metadata json.RawMessage, occurredAt time.Time) (Event, error) {
 	if name == "" {
-		return Event{}, errors.New("event name is required")
+		return Event{}, errors.New("name is required")
 	}
 	if userID == "" {
-		return Event{}, errors.New("event user_id is required")
+		return Event{}, errors.New("user_id is required")
 	}
 	if source == "" {
-		return Event{}, errors.New("event source is required")
-	}
-	if len(metadata) > maxMetadataSize {
-		return Event{}, errors.New("metadata exceeds 32KB limit")
+		return Event{}, errors.New("source is required")
 	}
 
-	now := time.Now().UTC()
-	if metadata == nil {
+	if len(metadata) == 0 {
 		metadata = json.RawMessage("{}")
 	}
-	if occurredAt.IsZero() {
-		occurredAt = now
-	} else {
-		occurredAt = occurredAt.UTC()
+	if len(metadata) > EventMetadataLimit {
+		return Event{}, errors.Errorf("metadata must be <= %d bytes", EventMetadataLimit)
 	}
+
+	occurred := occurredAt.UTC()
+	if occurred.IsZero() {
+		occurred = time.Now().UTC()
+	}
+
+	received := time.Now().UTC()
 
 	return Event{
 		ID:         uuid.New(),
@@ -52,7 +56,7 @@ func NewEvent(name, userID, source string, metadata json.RawMessage, occurredAt 
 		UserID:     userID,
 		Source:     source,
 		Metadata:   metadata,
-		OccurredAt: occurredAt,
-		ReceivedAt: now,
+		OccurredAt: occurred,
+		ReceivedAt: received,
 	}, nil
 }

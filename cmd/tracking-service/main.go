@@ -13,14 +13,13 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
-	"github.com/tdevilphan/quote-snap-golang/internal/config"
-	"github.com/tdevilphan/quote-snap-golang/internal/platform/logger"
-	"github.com/tdevilphan/quote-snap-golang/internal/platform/mongodb"
-	"github.com/tdevilphan/quote-snap-golang/internal/platform/queue"
-	redispkg "github.com/tdevilphan/quote-snap-golang/internal/platform/redis"
-	"github.com/tdevilphan/quote-snap-golang/internal/tracking/repository"
-	"github.com/tdevilphan/quote-snap-golang/internal/tracking/service"
-	httptransport "github.com/tdevilphan/quote-snap-golang/internal/tracking/transport/http"
+	apphttp "github.com/tdevilphan/quote-snap-golang/internal/app/http"
+	"github.com/tdevilphan/quote-snap-golang/internal/core/usecase"
+	"github.com/tdevilphan/quote-snap-golang/internal/infra/config"
+	"github.com/tdevilphan/quote-snap-golang/internal/infra/logger"
+	inframongo "github.com/tdevilphan/quote-snap-golang/internal/infra/mongodb"
+	queueasynq "github.com/tdevilphan/quote-snap-golang/internal/infra/queue/asynq"
+	inframongorepo "github.com/tdevilphan/quote-snap-golang/internal/infra/repository/mongo"
 )
 
 func main() {
@@ -30,7 +29,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	mongoClient, err := mongodb.Connect(ctx, cfg.MongoURI)
+	mongoClient, err := inframongo.Connect(ctx, cfg.MongoURI)
 	if err != nil {
 		log.Error("failed to connect to mongodb", "error", err)
 		exit(1)
@@ -44,27 +43,21 @@ func main() {
 	}()
 
 	database := mongoClient.Database(cfg.MongoDatabase)
-	if _, err := repository.NewMongoEventRepository(database); err != nil {
+	if _, err := inframongorepo.NewEventRepository(database); err != nil {
 		log.Error("failed to initialize event repository", "error", err)
 		exit(1)
 	}
 
-	redisClient := redispkg.NewClient(cfg.RedisAddr, cfg.RedisPassword)
-	defer func() {
-		if err := redisClient.Close(); err != nil {
-			log.Error("redis close error", "error", err)
-		}
-	}()
-
-	queueClient := queue.NewClient(cfg.RedisAddr, cfg.RedisPassword)
+	queueClient := queueasynq.NewClient(cfg.RedisAddr, cfg.RedisPassword)
 	defer func() {
 		if err := queueClient.Close(); err != nil {
 			log.Error("queue client close error", "error", err)
 		}
 	}()
 
-	eventService := service.NewEventService(queueClient)
-	eventHandler := httptransport.NewEventHandler(eventService, cfg.AsynqQueue, cfg.RequestTimeout, log)
+	dispatcher := queueasynq.NewDispatcher(queueClient, cfg.AsynqQueue)
+	ingestEvent := usecase.NewIngestEvent(dispatcher)
+	eventHandler := apphttp.NewEventHandler(ingestEvent, cfg.RequestTimeout, log)
 
 	router := buildRouter(log, eventHandler)
 
@@ -99,7 +92,7 @@ func main() {
 	}
 }
 
-func buildRouter(log *slog.Logger, handler *httptransport.EventHandler) *gin.Engine {
+func buildRouter(log *slog.Logger, handler *apphttp.EventHandler) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
